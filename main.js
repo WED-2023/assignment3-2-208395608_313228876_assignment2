@@ -1,4 +1,6 @@
 require("dotenv").config();
+console.log("API KEY:", process.env.SPOONACULAR_API_KEY);
+
 //#region express configures
 var express = require("express");
 var path = require("path");
@@ -50,7 +52,7 @@ app.get("/",function(req,res)
 // app.use(cors(corsConfig));
 // app.options("*", cors(corsConfig));
 
-var port = process.env.PORT || "80"; //local=3000 remote=80
+var port = process.env.PORT || "3000"; //local=3000 remote=80
 //#endregion
 const user = require("./routes/user");
 const recipes = require("./routes/recipes");
@@ -81,10 +83,7 @@ app.get("/alive", (req, res) => res.send("I'm alive"));
 app.use("/users", user);
 app.use("/recipes", recipes);
 app.use("/", auth);
-
-
-
-
+// app.use("/meals", meals)
 
 
 // Default router

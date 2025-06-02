@@ -4,7 +4,9 @@ const MySql = require("../routes/utils/MySql");
 const DButils = require("../routes/utils/DButils");
 const bcrypt = require("bcrypt");
 
-router.post("/Register", async (req, res, next) => {
+
+/// Register new user
+router.post("/register", async (req, res, next) => {
   try {
     // parameters exists
     // valid parameters
@@ -21,6 +23,7 @@ router.post("/Register", async (req, res, next) => {
     let users = [];
     users = await DButils.execQuery("SELECT username from users");
 
+    // check that username is not taken
     if (users.find((x) => x.username === user_details.username))
       throw { status: 409, message: "Username taken" };
 
@@ -30,8 +33,11 @@ router.post("/Register", async (req, res, next) => {
       parseInt(process.env.bcrypt_saltRounds)
     );
 
+    // success:
+    // Create the new user and insert it into the DB
     await DButils.execQuery(
-      `INSERT INTO users (username, firstname, lastname, country, password, email, profilePic) VALUES ('${user_details.username}', '${user_details.firstname}', '${user_details.lastname}',
+      `INSERT INTO users (username, firstname, lastname, country, password, email, profilePic) VALUES
+       ('${user_details.username}', '${user_details.firstname}', '${user_details.lastname}',
       '${user_details.country}', '${hash_password}', '${user_details.email}', '${user_details.profilePic}')`
     );
     res.status(201).send({ message: "user created", success: true });
@@ -40,12 +46,14 @@ router.post("/Register", async (req, res, next) => {
   }
 });
 
-router.post("/Login", async (req, res, next) => {
+
+// LogIn 
+router.post("/login", async (req, res, next) => {
   try {
     // check that username exists
     const users = await DButils.execQuery("SELECT username FROM users");
     if (!users.find((x) => x.username === req.body.username))
-      throw { status: 401, message: "Username or Password incorrect" };
+      res.status(401).send({message: "Username or Password incorrect"});
 
     // check that the password is correct
     const user = (
@@ -55,11 +63,11 @@ router.post("/Login", async (req, res, next) => {
     )[0];
 
     if (!bcrypt.compareSync(req.body.password, user.password)) {
-      throw { status: 401, message: "Username or Password incorrect" };
+      res.status(401).send({message: "Username or Password incorrect" });
     }
 
     // Set cookie
-    req.session.user_id = user.user_id;
+    req.session.username = user.username;
     console.log("session user_id login: " + req.session.user_id);
 
     // return cookie
@@ -69,10 +77,22 @@ router.post("/Login", async (req, res, next) => {
   }
 });
 
-router.post("/Logout", function (req, res) {
+// logout
+router.post("/logout", function (req, res) {
   console.log("session user_id Logout: " + req.session.user_id);
+  try{
   req.session.reset(); // reset the session info --> send cookie when  req.session == undefined!!
-  res.send({ success: true, message: "logout succeeded" });
+  res.status(204).send({ 
+    success: true,
+     message: "logout succeeded" 
+    });
+  } catch (error) {
+    res.status(400).send({ 
+      success: false,
+       message: "logout failed" 
+      });
+  }
 });
+
 
 module.exports = router;

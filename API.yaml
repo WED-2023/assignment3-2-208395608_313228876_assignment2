@@ -1,0 +1,395 @@
+openapi: 3.0.0
+
+info:
+  title: מתכוני סבתא – API
+  version: 2.0-oas3
+  description: |
+    Recipes Full Of Meals - App API
+
+servers:
+  - url: https://grandma-recipes.com/api
+    description: Production
+
+tags:
+  - name: auth
+  - name: recipes
+  - name: users
+  
+security:
+  - cookieAuth: []
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth
+
+  schemas:
+    ## AUTH 
+    UserSignUp:
+      type: object
+      required: [username, firstName, lastName, country, password, confirmPassword, email]
+      properties:
+        username:    {type: string, minLength: 3, maxLength: 8, pattern: "^[A-Za-z]+$", example: Shairiel}
+        firstName:   {type: string, minLength: 1}
+        lastName:    {type: string, minLength: 1}
+        country:     {type: string, example: IL}
+        password:    {type: string, minLength: 10, maxLength: 20, example: RepeatMe2!}
+        confirmPassword: {type: string, example: RepeatMe2!}
+        email: {type: string, format: email, example: shai@nvm.com}
+
+    UserLogin:
+      type: object
+      required: [username, password]
+      properties:
+        username: {type: string}
+        password: {type: string, format: password}
+
+    ## RECIPES
+    RecipePreview:
+      type: object
+      required: [id, title, image, time]
+      properties:
+        id:         {type: integer, minimum: 1}
+        title:      {type: string}
+        image:      {type: string, format: uri}
+        time:       {type: integer, description: דקות הכנה}
+        likes:      {type: integer}
+        vegan:      {type: boolean}
+        vegetarian: {type: boolean}
+        glutenFree: {type: boolean}
+        watched:    {type: boolean}
+        favorite:   {type: boolean}
+
+    RecipeFull:
+      allOf:
+        - $ref: '#/components/schemas/RecipePreview'
+        - type: object
+          required: [ingredients, steps, servings]
+          properties:
+            ingredients:
+              type: array
+              minItems: 1
+              items:
+                type: object
+                required: [name, quantity]
+                properties:
+                  name:     {type: string}
+                  quantity: {type: string}
+            steps:
+              type: array
+              minItems: 1
+              items: {type: string}
+            servings:
+              type: integer
+              minimum: 1
+
+paths:
+
+  ##  AUTH 
+  /register:
+    post:
+      tags: [auth]
+      description: שם משתמש ייחודי; סיסמה תואמת confirmPassword.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UserSignUp'}
+      responses:
+        "201": { description: נוצר }
+        "400": { description: קלט לא חוקי }
+        "409": { description: שם משתמש / אימייל קיים }
+
+  /login:
+    post:
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UserLogin'}
+      responses:
+        "200": { description: התחברות הצליחה – cookie נשלח }
+        "401": { description: שם משתמש או סיסמה שגויים }
+
+  /logout:
+    post:
+      tags: [auth]
+      responses:
+        "204": { description: success }
+        "401": { description: problem occured }
+
+## USERS
+  /users:
+  /users/favorites:
+    get:
+      tags: [users]
+      security: [{cookieAuth: []}]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/RecipePreview'}
+        "401": { description: לא מחובר }
+    post:
+      tags: [users]
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipeId]
+              properties:
+                recipeId: {type: integer, minimum: 1}
+      responses:
+        "200": { description: The Recipe successfully saved as favorite }
+        "404": { description: Input is not valid }
+        "401": { description: לא מחובר }
+
+  /users/watchedRecipes:
+    get:
+      tags: [users]
+      security: [{cookieAuth: []}]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  watchedRecipes:
+                    type: array
+                    items: {$ref: '#/components/schemas/RecipePreview'}
+        "401": { description: לא מחובר }
+    post:
+      tags: [users]
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipeId]
+              properties:
+                recipeId: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: Recipe added to watched list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  watchedRecipes:
+                    type: array
+                    items: {$ref: '#/components/schemas/RecipePreview'}
+        "401": { description: לא מחובר }
+
+
+  /users/myRecipes:
+    get:
+      tags: [users]
+      security: [{ cookieAuth: [] }]
+      description: Returns all user's created recipes
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  watchedRecipes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RecipeFull'
+                  result:
+                    type: string
+                    example: "success"
+        "404":
+          description: User not logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: "failure"
+
+
+  ##  FAMILY RECIPES
+  /recipes/familyRecipes:
+    get:
+      tags: [recipes]
+      security: [{cookieAuth: []}]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean}
+                  familyRecipes:
+                    type: array
+                    items: {$ref: '#/components/schemas/RecipeFull'}
+        "400": { description: Missing user id in request. }
+        "404": { description: No family recipes found. }
+        "401": { description: לא מחובר }
+
+
+  ##  LAST SEARCH
+  /recipes/lastSearch:
+    get:
+      tags: [recipes]
+      security: [{cookieAuth: []}]
+      responses:
+        "200":
+          description: Returns the user's last search query
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean}
+                  query: {type: string}
+
+  ##  RECIPES
+  /recipes/random:
+    get:
+      tags: [recipes]
+      description: מחזיר תמיד שלושה מתכונים רנדומליים.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                minItems: 3
+                maxItems: 3
+                items: {$ref: '#/components/schemas/RecipePreview'}
+        "502": { description: שגיאת שירות חיצוני }
+
+  /recipes/search:
+    get:
+      tags: [recipes]
+      parameters:
+        - in: query
+          name: query
+          required: true
+          schema: {type: string, minLength: 2}
+          description: מחרוזת חיפוש
+        - in: query
+          name: cuisine
+          schema: {type: string}
+        - in: query
+          name: diet
+          schema: {type: string}
+        - in: query
+          name: intolerances
+          schema: {type: string}
+        - in: query
+          name: number
+          schema: {type: integer, default: 5, minimum: 5, maximum: 15}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/RecipePreview'}
+        "204": { description: No recipes found }
+        "400": { description: Invalid input }
+        "404": { description: Input is not valid }
+
+  /recipes/{recipeId}:
+    get:
+      tags: [recipes]
+      parameters:
+        - in: path
+          name: recipeId
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean}
+                  data: {$ref: '#/components/schemas/RecipeFull'}
+        "400": 
+          description: Invalid recipe ID provided.
+        "404": 
+          description: Recipe not found.
+
+  /recipes:
+    put:
+      tags: [recipes]
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - image_url
+                - ready_in_minutes
+                - aggregate_likes
+                - vegetarian
+                - vegan
+                - gluten_free
+                - summary
+                - ingredients
+                - instructions
+                - servings
+                - createdBy
+              properties:
+                title: {type: string}
+                image_url: {type: string}
+                ready_in_minutes: {type: integer}
+                aggregate_likes: {type: integer}
+                vegetarian: {type: boolean}
+                vegan: {type: boolean}
+                gluten_free: {type: boolean}
+                summary: {type: string}
+                ingredients:
+                  type: array
+                  items: {type: string}
+                instructions:
+                  type: array
+                  items: {type: string}
+                servings: {type: integer}
+                createdBy: {type: string, enum: ['USER', 'WEBSITE', 'FAMILY']}
+      responses:
+        "201": 
+          description: Recipe created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean}
+                  message: {type: string}
+        "400": 
+          description: The provided information is not valid.
+        "401": 
+          description: לא מחובר
+

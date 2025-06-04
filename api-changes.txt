@@ -1,0 +1,7 @@
+API changes:
+Added /recipes/familyRecipes endpoint to fetch all family recipes.
+Added /recipes/lastSearch endpoint to return the user’s last search query.
+Added /recipes/watchedRecipes endpoints (GET/POST) to manage and retrieve watched recipes.
+Added /myRecipes endpoint to return all recipes created by the logged-in user.
+Improved /recipes/{id} with stricter ID validation and clearer success/error responses.
+Changed recipe creation to PUT /recipes, requiring all fields and created_by.
